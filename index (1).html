@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Prisma: entrenamiento de vergencia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: clínico y amable, como una hoja de ejercicios de ortóptica.
+   IDEA: un estereoscopio de consultorio: dos lentes, dos imágenes, un prisma.
+   PICTURE: el visor visto desde dentro, cada imagen corrida hacia la nariz.
+   COLOUR and TYPE: papel cálido, verde azulado (ojo desviado) y ámbar (otro ojo); Atkinson Hyperlegible, hecha para baja visión.
+   LAYOUT: una columna: título y visor, botón de inicio, ajustes, prueba de control, historial. */
+:root{color-scheme:light dark;--bg:light-dark(#f3f0e8,#121316);--ink:light-dark(#1b1c1f,#ebe7de);--mut:light-dark(#5b5d63,#a5a39d);--card:light-dark(#fffdf8,#1c1d21);--line:light-dark(#d9d4c8,#2f3137);--acc:light-dark(#0f766e,#4fd1c5);--warm:light-dark(#b45309,#f6ad55)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Atkinson Hyperlegible",system-ui,sans-serif;overflow-x:clip}
+main{max-width:940px;margin:0 auto;padding:clamp(20px,4vw,48px) max(5vw,16px)}
+h1{font-size:clamp(34px,6vw,48px);line-height:1.05;margin:0 0 10px;text-wrap:balance}
+h2{font-size:21px;line-height:1.2;margin:34px 0 12px}
+p{margin:0 0 12px;max-width:66ch}.mut{color:var(--mut)}
+.hero{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:28px;align-items:center}
+.hero svg{width:100%;height:auto;display:block}
+.go{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 6px}
+button{font:inherit;font-weight:700;min-height:48px;padding:0 20px;border-radius:12px;border:2px solid var(--acc);background:var(--acc);color:light-dark(#fff,#0b1413);cursor:pointer}
+button.ghost{background:transparent;color:var(--acc)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--warm);outline-offset:2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}
+label{display:grid;gap:6px;font-size:15px;color:var(--mut)}
+label b{color:var(--ink)}
+input,select{font:inherit;font-size:16px;min-height:44px;padding:6px 10px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+input[type=range]{padding:0;accent-color:var(--acc);border:0;background:none}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px}
+.note{border-left:4px solid var(--warm);padding:12px 16px;background:var(--card);border-radius:0 12px 12px 0;font-size:15px;margin:20px 0}
+.note p{margin:0 0 6px}.note p:last-child{margin:0}
+ol{padding-left:22px;margin:0}ol li{margin-bottom:6px;max-width:66ch}
+table{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:tabular-nums}
+th,td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{font-size:13px;color:var(--mut);font-weight:700}
+th:first-child,td:first-child{text-align:left}
+.scroll{overflow-x:auto}
+#test{font-variant-numeric:tabular-nums;font-weight:700;margin-top:10px}
+.goal{font-size:17px;margin:0 0 10px}.goal b{color:var(--acc)}
+#vr{position:fixed;inset:0;width:100vw;height:100vh;display:none;background:#0e0f12;touch-action:none}
+body.playing{overflow:hidden}body.playing #vr{display:block}body.playing main{display:none}
+@media(max-width:600px){.hero{grid-template-columns:1fr}table{font-size:13px}}
+</style></head><body>
+<main>
+<section class="hero">
+  <div>
+    <h1>Prisma: entrenamiento de vergencia</h1>
+    <p class="mut">Para visor de celular (Dream Vision, Cardboard o similar). Mide tu foria y tus rangos con prismas virtuales, y luego entrena la convergencia con varios juegos cuyos prismas suben de nivel. Todo se maneja inclinando la cabeza.</p>
+    <div class="go"><button id="start">Iniciar sesión guiada</button><button class="ghost" id="testBtn">Probar control</button></div>
+    <div id="test" class="mut" aria-live="polite"></div>
+  </div>
+  <svg viewBox="0 0 420 240" role="img" aria-label="Vista dentro del visor: cada ojo ve el blanco corrido hacia la nariz, lo que obliga a converger">
+    <rect x="6" y="20" width="408" height="200" rx="34" fill="#1c1d21"/>
+    <path d="M178 220 Q210 160 242 220Z" fill="var(--bg)"/>
+    <g fill="#0e0f12"><circle cx="112" cy="112" r="84"/><circle cx="308" cy="112" r="84"/></g>
+    <g fill="none" stroke-width="3">
+      <g stroke="#f6ad55"><circle cx="128" cy="112" r="34"/><circle cx="128" cy="112" r="17"/></g>
+      <g stroke="#4fd1c5"><circle cx="292" cy="112" r="34"/><circle cx="292" cy="112" r="17"/></g>
+      <g stroke="#ece8df" stroke-opacity=".35" stroke-dasharray="4 5"><circle cx="112" cy="112" r="34"/><circle cx="308" cy="112" r="34"/></g>
+    </g>
+    <g stroke="#ece8df" stroke-width="3" fill="none" stroke-linecap="round"><path d="M70 186h40m-9-7 9 7-9 7"/><path d="M350 186h-40m9-7-9 7 9 7"/></g>
+    <g font-family="Atkinson Hyperlegible,system-ui" font-size="15" font-weight="700" fill="#ece8df" text-anchor="middle"><text x="112" y="44">ojo izq.</text><text x="308" y="44">ojo der.</text></g>
+  </svg>
+</section>
+
+<div class="note">
+  <p><b>Úsalo junto con tu oftalmóloga.</b> Enséñale el historial de abajo y pregúntale qué meta y qué frecuencia te recomienda, sobre todo si estás valorando otra cirugía.</p>
+  <p>Sesiones cortas (10–15 min). Si la visión doble no se quita, o te dan dolor de cabeza o mareo, termina la sesión (inclina a la izquierda en el descanso). Si tus lentes caben en el visor, úsalos.</p>
+</div>
+
+<h2>Ajustes</h2>
+<div class="grid card">
+  <label>Ojo desviado<select id="eye"><option value="R">Derecho</option><option value="L">Izquierdo</option></select></label>
+  <label>Duración de la sesión<select id="mins"><option value="10">10 min</option><option value="15">15 min</option><option value="20">20 min</option></select></label>
+  <label>Intensidad<select id="intens"><option value="normal">Normal (+2 Δ/nivel)</option><option value="alta">Alta (+3 Δ/nivel)</option></select></label>
+  <label>Nivel actual (0 = automático) <input id="lvl" type="number" min="0" max="18" step="1" inputmode="numeric"></label>
+  <label>Campo visual por ojo: <b><span id="fovV"></span>°</b><input id="fov" type="range" min="60" max="110" step="1"></label>
+  <label>Separación de imágenes: <b><span id="sepV"></span> px</b><input id="sep" type="range" min="-60" max="60" step="2"></label>
+  <label>Contraste del ojo que no se desvía: <b><span id="contrastV"></span>%</b><input id="contrast" type="range" min="30" max="100" step="5"></label>
+  <label>Distancia entre centros de lentes (mm, 0 = no usar) <input id="lensmm" type="number" min="0" max="80" step="0.5" inputmode="decimal"></label>
+  <label>Ancho de la pantalla del celular (mm) <input id="scrmm" type="number" min="0" max="250" step="0.5" inputmode="decimal"></label>
+  <label>Inclinación para elegir: <b><span id="tiltV"></span>°</b><input id="tilt" type="range" min="8" max="25" step="1"></label>
+</div>
+<p class="mut" style="margin-top:10px">Los Δ son aproximados: dependen del campo visual que pongas y de cómo quedan las lentes. Lo que importa es comparar sesión contra sesión con el mismo visor y los mismos ajustes.</p>
+<p class="mut">Calibración en mm (opcional, más precisa): mide con una regla la distancia entre el centro de una lente y el de la otra del visor, y el ancho de la parte iluminada de la pantalla en horizontal. Con eso las imágenes quedan centradas en las lentes; "Separación" queda solo para ajuste fino (déjala en 0). Si la cambias, empieza un historial nuevo.</p>
+
+<h2>Cómo va una sesión</h2>
+<ol>
+  <li><b>Centro.</b> Mantén la cabeza derecha 3 s; luego inclínala a la derecha una vez para calibrar.</li>
+  <li><b>Foria (2 veces).</b> Un ojo ve una regla y el otro una flecha. Lleva la flecha al 0 inclinando la cabeza y quédate quieto 3 s.</li>
+  <li><b>Rangos.</b> Verás una E dentro del blanco: los dientes los ve un ojo y el lomo el otro, así que solo la lees bien si fusionas. Inclina hacia donde abre la E. Con dos aciertos el prisma sube; con dos errores se marca tu ruptura y luego baja hasta tu recobro. No se muestra el número para no influirte.</li>
+  <li><b>Juegos de 60 s</b> con descanso entre cada uno. <i>Lluvia</i>: el prisma sube y baja despacio; captura gemas que solo ve un ojo. <i>Saltos</i>: el prisma brinca entre BO y BI; di hacia dónde abre la E. <i>Sostener</i> (intensidad alta): aguanta el prisma alto mientras la E se hace cada vez más chica. <i>Profundidad</i>: ¿cuál anillo está más cerca?</li>
+  <li>Con 85 % o más en Lluvia, Saltos o Sostener subes de nivel (en intensidad alta: 80 % sube uno y 95 % sube dos); con menos de 50 % bajas uno. En alta, Sostener empuja el prisma hasta 110 % de tu nivel.</li>
+</ol>
+
+<h2>Historial</h2>
+<div id="goal" class="goal"></div>
+<div class="card" id="chartCard" style="margin-bottom:14px"><div class="mut" style="font-size:14px;margin-bottom:6px">Progreso (versión 2): <b style="color:var(--acc)">BO ruptura</b> · <b style="color:var(--warm)">foria exo</b> · línea punteada = meta (2 × foria)</div><svg id="chart" viewBox="0 0 600 200" style="width:100%;height:auto;display:block"></svg></div>
+<div class="scroll"><table><thead><tr><th>Fecha</th><th>Ver.</th><th>Foria</th><th>BO ruptura / recobro</th><th>BI ruptura / recobro</th><th>Nivel</th><th>Estéreo</th></tr></thead><tbody id="hist"></tbody></table></div>
+<div class="go"><button class="ghost" id="copy">Copiar datos</button><button class="ghost" id="wipe">Borrar historial</button></div>
+</main>
+<canvas id="vr"></canvas>
+<script>
+{
+const $=s=>document.querySelector(s);
+const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const cfg=Object.assign({eye:'R',fov:90,sep:0,mins:15,contrast:100,tilt:14,intens:'alta',lensmm:0,scrmm:0},store.get('prisma_cfg',{}));
+let level=Number(store.get('prisma_lvl',0))||0;
+let hist=store.get('prisma_hist',[]);if(!Array.isArray(hist))hist=[];
+const P2D=p=>Math.atan(p/100)*180/Math.PI,D2P=d=>Math.tan(d*Math.PI/180)*100;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),r1=v=>Math.round(v*10)/10;
+const lvStep=()=>cfg.intens==='alta'?3:2,maxBO=()=>4+lvStep()*level,alta=()=>cfg.intens==='alta';
+
+for(const id of ['eye','intens','fov','sep','mins','contrast','tilt','lensmm','scrmm']){
+  const el=$('#'+id),out=$('#'+id+'V');el.value=cfg[id];
+  const sync=()=>{cfg[id]=id==='eye'||id==='intens'?el.value:Number(el.value)||0;if(out)out.textContent=el.value;store.set('prisma_cfg',cfg)};
+  el.addEventListener('input',sync);sync();
+}
+const lvlEl=$('#lvl');lvlEl.value=level;
+lvlEl.addEventListener('change',()=>{level=clamp(Math.round(Number(lvlEl.value)||0),0,18);lvlEl.value=level;store.set('prisma_lvl',level)});
+
+/* ---------- entrada: inclinación de cabeza, teclado/control BT, toque ---------- */
+const inp={motion:false,raw:0,neutral:null,sign:1,roll:0,keyDir:0,armed:true,ht:0,hd:0,last:'—'};
+addEventListener('devicemotion',ev=>{
+  const g=ev.accelerationIncludingGravity;if(!g||g.x==null||g.y==null)return;
+  inp.motion=true;const a=Math.atan2(g.y,g.x)*180/Math.PI;inp.raw=a;
+  if(inp.neutral==null){inp.neutral=a;return}
+  let d=a-inp.neutral;d=((d+540)%360)-180;inp.roll+=0.25*(d-inp.roll);
+});
+const tiltR=()=>inp.sign*inp.roll;
+function ctl(){if(inp.keyDir)return inp.keyDir;if(!inp.motion)return 0;const r=tiltR(),dz=3;if(Math.abs(r)<dz)return 0;return clamp((r-Math.sign(r)*dz)/(cfg.tilt*1.4),-1,1)}
+function fire(ev){inp.last=ev;if(playing&&scene&&scene.on)scene.on(ev)}
+function tickInput(dt){
+  if(!inp.motion)return;const r=tiltR(),dir=r>cfg.tilt?1:r<-cfg.tilt?-1:0;
+  if(dir&&inp.armed){if(inp.hd!==dir){inp.hd=dir;inp.ht=0}inp.ht+=dt;if(inp.ht>=0.7){inp.armed=false;inp.ht=0;fire(dir>0?'right':'left')}}
+  else{inp.ht=0;inp.hd=0;if(Math.abs(r)<cfg.tilt*0.5)inp.armed=true}
+}
+const KL=['ArrowLeft','a','A'],KR=['ArrowRight','d','D'],KO=['Enter',' ','ArrowUp','ArrowDown','AudioVolumeUp','AudioVolumeDown','MediaPlayPause','MediaTrackNext','MediaTrackPrevious','PageUp','PageDown'];
+addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&playing){stop();return}
+  let ev=null;if(KL.includes(e.key)){inp.keyDir=-1;ev='left'}else if(KR.includes(e.key)){inp.keyDir=1;ev='right'}else if(KO.includes(e.key))ev='ok';
+  if(!ev)return;if(playing)e.preventDefault();if(!e.repeat)fire(ev);
+});
+addEventListener('keyup',e=>{if(KL.includes(e.key)||KR.includes(e.key))inp.keyDir=0});
+
+/* ---------- dibujo estéreo (unidades: grados visuales) ---------- */
+const cv=$('#vr'),ctx=cv.getContext('2d');let W=0,H=0,dpr=1,K=10;
+const C={bg:'#0e0f12',ink:'#ece8df',dev:'#4fd1c5',fix:'#f6ad55',bad:'#ef6b5b',mut:'#8d8a84'};
+function fit(){dpr=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr)}
+addEventListener('resize',fit);
+cv.addEventListener('pointerdown',e=>fire(e.clientX<W/2?'left':'right'));
+function txt(s,x,y,size,col){size*=1.25;ctx.save();ctx.scale(1/K,1/K);ctx.font=`700 ${size*K}px "Atkinson Hyperlegible",system-ui,sans-serif`;ctx.fillStyle=col||C.ink;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(s,x*K,y*K);ctx.restore()}
+function lines(s,x,y,size,col){s.split('\n').forEach((l,i)=>txt(l,x,y+i*size*1.8,size,col))}
+function ring(x,y,r,col,w){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.strokeStyle=col;ctx.lineWidth=w||0.12;ctx.stroke()}
+function seg(x1,y1,x2,y2,col,w){ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.strokeStyle=col;ctx.lineWidth=w||0.12;ctx.lineCap='round';ctx.stroke()}
+function dot(x,y,r,col){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=col;ctx.fill()}
+function arc(x,y,r,f,col){ctx.beginPath();ctx.arc(x,y,r,-Math.PI/2,-Math.PI/2+f*Math.PI*2);ctx.strokeStyle=col;ctx.lineWidth=0.16;ctx.stroke()}
+function target(){ring(0,0,2.2,C.ink);ring(0,0,1.2,C.ink);seg(-0.5,0,0.5,0,C.ink);seg(0,-0.5,0,0.5,C.ink)}
+function rings(){ring(0,0,2.6,C.ink);ring(0,0,1.8,C.ink,0.08)}
+/* E dividida: dientes al ojo que fija, lomo al ojo desviado. dir 1 = abre a la derecha */
+function splitE(role,dir,s){const h=s/2,w=Math.max(0.07,s/6);if(role==='fix'){for(const y of[-h,0,h])seg(-h,y,h,y,C.fix,w)}else seg(-h*dir,-h,-h*dir,h,C.dev,w)}
+function nonius(role){if(role==='dev')seg(0,-3.4,0,-2.6,C.dev,0.16);else seg(0,2.6,0,3.4,C.fix,0.16)}
+
+function render(){
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle=C.bg;ctx.fillRect(0,0,W,H);
+  const half=W/2;K=half/cfg.fov;
+  for(const e of ['L','R']){
+    const x0=e==='L'?0:half,role=e===cfg.eye?'dev':'fix';
+    ctx.save();ctx.beginPath();ctx.rect(x0,0,half,H);ctx.clip();
+    const mm=cfg.lensmm>0&&cfg.scrmm>0?cfg.lensmm/2*(W/cfg.scrmm):null;
+    const cx=(mm==null?x0+half/2:W/2+(e==='L'?-mm:mm))+(e==='L'?-cfg.sep:cfg.sep),sh=(e==='L'?1:-1)*P2D(S.demand)/2;
+    ctx.translate(cx+sh*K,H/2);ctx.scale(K,K);
+    scene.draw(role,e);
+    if(inp.ht>0&&!scene.noHold)arc(0,7.4,0.6,inp.ht/0.7,C.ink);
+    ctx.restore();
+    if(role==='fix'&&scene.dim&&cfg.contrast<100){ctx.fillStyle=`rgba(14,15,18,${(1-cfg.contrast/100).toFixed(2)})`;ctx.fillRect(x0,0,half,H)}
+  }
+  ctx.fillStyle='#000';ctx.fillRect(half-1,0,2,H);
+}
+
+/* ---------- sesión y escenas ---------- */
+let playing=false,scene=null,sess=null,gi=-1,t0=0,lastT=0,wl=null,fsOn=false,testing=false;
+const S={demand:0};
+const elapsed=()=>(performance.now()-t0)/1000;
+function go(sc){S.demand=0;sc.t=0;scene=sc;if(sc.enter)sc.enter()}
+
+const sNeutral=()=>({noHold:true,sx:0,sy:0,update(){
+  if(this.t>1&&inp.motion){this.sx+=Math.cos(inp.raw*Math.PI/180);this.sy+=Math.sin(inp.raw*Math.PI/180)}
+  if(inp.motion&&this.t>3.5){inp.neutral=Math.atan2(this.sy,this.sx)*180/Math.PI;inp.roll=0;inp.armed=false;go(sSign())}
+},on(){if(!inp.motion&&this.t>1)go(sPhoria(0))},draw(){
+  if(inp.motion){txt('Mantén la cabeza derecha',0,-3,1.1);arc(0,1.2,1,Math.min(1,this.t/3.5),C.dev)}
+  else{txt('Preparando…',0,-3,1.1);if(this.t>2)lines('No detecto el sensor de movimiento.\nUsa el botón del control para seguir.',0,-1,0.85,C.mut)}
+}});
+
+const sSign=()=>({noHold:true,h:0,stage:0,update(dt){
+  const r=inp.roll;
+  if(!this.stage){if(Math.abs(r)>cfg.tilt){this.h+=dt;if(this.h>0.6){inp.sign=r>0?1:-1;this.stage=1}}else this.h=0}
+  else if(Math.abs(r)<4){inp.armed=false;go(sPhoria(0))}
+},draw(){
+  txt(this.stage?'Bien. Regresa al centro':'Inclina la cabeza a la DERECHA',0,-2,1.1);
+  if(!this.stage){seg(-2,1,2,1,C.dev,0.2);seg(2,1,1.2,0.3,C.dev,0.2);seg(2,1,1.2,1.7,C.dev,0.2)}
+}});
+
+const sPhoria=trial=>({noHold:true,x:(Math.random()<0.5?-1:1)*(1.5+Math.random()*2),moved:0,still:0,update(dt){
+  const v=ctl();
+  if(v){this.x=clamp(this.x+v*dt*2.4,-12,12);this.moved+=Math.abs(v*dt);this.still=0}
+  else if(this.moved>0.4&&inp.motion&&!inp.keyDir){this.still+=dt;if(this.still>3)this.done()}
+},on(e){if(e==='ok'&&this.t>1)this.done()},done(){
+  const ts=cfg.eye==='R'?1:-1;sess.phoriaTrials.push(r1(D2P(ts*this.x)));
+  if(trial===0)go(sPhoria(1));
+  else{const p=sess.phoriaTrials;sess.phoria=r1((p[0]+p[1])/2);go(sIntro('Ahora: rangos de convergencia','Verás un blanco con dos rayitas.\nCuando lo veas DOBLE, inclina la cabeza.',()=>sRange(1)))}
+},draw(role){
+  const ts=cfg.eye==='R'?1:-1;
+  if(role==='fix'){
+    seg(-12,0,12,0,C.fix,0.1);
+    for(let p=2;p<=20;p+=2)for(const s of[1,-1]){const x=ts*s*P2D(p),big=p%4===0;seg(x,-(big?0.7:0.4),x,0,C.fix,0.1);if(big)txt(String(p),x,1,0.75,C.fix)}
+    seg(0,-1.1,0,0.4,C.fix,0.18);txt('0',0,1,0.8,C.fix);
+    txt('EXO',ts*10,2.4,0.8,C.fix);txt('ENDO',-ts*10,2.4,0.8,C.fix);
+    txt('Lleva la flecha al 0 ('+(trial+1)+'/2)',0,-5.4,1,C.fix);
+    txt(inp.motion?'Inclina para mover · quieto 3 s = listo':'← → mueve · botón = listo',0,-3.9,0.8,C.mut);
+    if(this.still>0)arc(0,4.6,0.7,this.still/3,C.fix);
+  }else{seg(this.x,-3.3,this.x,-1.3,C.dev,0.18);seg(this.x,-1.3,this.x-0.45,-2,C.dev,0.18);seg(this.x,-1.3,this.x+0.45,-2,C.dev,0.18)}
+}});
+
+const sIntro=(a,b,next,secs)=>({update(){if(this.t>(secs||7))go(next())},on(){if(this.t>1.5)go(next())},draw(){txt(a,0,-2.5,1.1);lines(b,0,-0.4,0.85,C.mut)}});
+
+const sRange=dir=>({ph:'up',lvl:0,step:dir>0?2:1,cap:dir>0?40:20,ok:0,bad:0,cur:1,tt:0,flash:0,good:true,enter(){this.newT(2.5)},newT(d){this.cur=Math.random()<0.5?-1:1;this.tt=this.t+(d||0.5)},update(){
+  S.demand=dir*this.lvl;if(this.ph!=='end'&&this.t-this.tt>4.5)this.resp(false);
+},on(e){if(e==='ok'||this.ph==='end'||this.t<this.tt+0.3)return;this.resp((e==='right'?1:-1)===this.cur)},resp(c){
+  const k=dir>0?'bo':'bi';this.flash=this.t+0.3;this.good=c;
+  if(this.ph==='up'){
+    if(c){this.bad=0;if(++this.ok>=2){this.ok=0;this.lvl+=this.step;if(this.lvl>=this.cap){this.lvl=this.cap;sess[k].brk=this.cap;sess[k].capped=true;this.toDown()}}}
+    else{this.ok=0;if(++this.bad>=2){sess[k].brk=this.lvl;this.toDown()}}
+  }else{
+    if(c){if(++this.ok>=2){sess[k].rec=this.lvl;this.ph='end';
+      if(dir>0)go(sIntro('Ahora base interna (BI)','Igual: inclina hacia donde abre la E.',()=>sRange(-1)));else go(startTraining());return}}
+    else{this.ok=0;this.lvl=Math.max(0,this.lvl-this.step)}
+  }
+  this.newT();
+},toDown(){this.ph='down';this.ok=0;this.bad=0;this.lvl=Math.max(0,this.lvl-this.step)},draw(role){
+  rings();nonius(role);if(this.t>=this.tt)splitE(role,this.cur,1.3);
+  if(this.flash>this.t)dot(0,2.2,0.25,this.good?C.dev:C.bad);
+  txt(this.t<2.5?'Mira el centro':'¿Hacia dónde abre la E? Inclina',0,-5.6,1);
+  txt(this.ph==='up'?(dir>0?'Rango BO':'Rango BI'):'Recobro',0,5.6,0.75,C.mut);
+}});
+
+function startTraining(){
+  if(!level){const w=Math.max(6,0.6*(sess.bo.brk||10));level=clamp(Math.round((w-4)/lvStep()),1,18)}
+  sess.levelStart=level;sess.biJ=clamp(Math.round((sess.bi.brk||4)*0.5),1,alta()?6:4);
+  return sIntro('Entrenamiento · nivel '+level,'Prismas de hasta '+maxBO()+' Δ base externa.\nPrimer juego: Lluvia. Mueve la nave con la cabeza.',()=>nextGame(),8);
+}
+function nextGame(){if(elapsed()>=cfg.mins*60)return sResults('Tiempo cumplido');gi++;const L=alta()?[sRain,sJump,sHold,sDepth]:[sRain,sJump,sDepth];return L[gi%L.length]()}
+function adapt(acc){const old=level,up=alta()?0.8:0.85;if(alta()&&acc>=0.95)level=Math.min(18,level+2);else if(acc>=up)level=Math.min(18,level+1);else if(acc<0.5)level=Math.max(1,level-1);store.set('prisma_lvl',level);lvlEl.value=level;return level>old?' · sube a nivel '+level:level<old?' · baja a nivel '+level:''}
+
+const sRain=()=>({dim:true,dur:60,ship:0,objs:[],nx:0.6,st:{dev:[0,0],fix:[0,0]},score:0,update(dt){
+  {const f=0.5-0.5*Math.cos(2*Math.PI*this.t/(alta()?12:20));S.demand=maxBO()*(alta()?0.3+0.7*f:f)}
+  this.ship=clamp(this.ship+ctl()*dt*13,-10,10);
+  this.nx-=dt;if(this.nx<=0&&this.t<this.dur-3){this.nx=(alta()?0.55:0.75)+Math.random()*0.4;this.objs.push({x:-10+Math.random()*20,y:-8,v:(alta()?5:4)+level*0.15,eye:Math.random()<0.6?'dev':'fix',rock:Math.random()<0.22})}
+  for(const o of this.objs){o.y+=o.v*dt;
+    if(!o.gone&&Math.abs(o.y-6.9)<0.8&&Math.abs(o.x-this.ship)<1.4){o.gone=true;if(o.rock)this.score=Math.max(0,this.score-2);else{this.st[o.eye][0]++;this.score++}}
+    if(!o.gone&&o.y>8.4){o.gone=true;if(!o.rock)this.st[o.eye][1]++}}
+  this.objs=this.objs.filter(o=>!o.gone);
+  if(this.t>=this.dur){const a=this.st.dev,b=this.st.fix,tot=a[0]+a[1]+b[0]+b[1],acc=tot?(a[0]+b[0])/tot:0,ad=(a[0]+a[1])?a[0]/(a[0]+a[1]):0;
+    sess.rounds.push({g:'Lluvia',lvl:level,acc:r1(acc*100),dev:r1(ad*100),max:maxBO()});
+    go(sRest('Lluvia '+Math.round(acc*100)+'% · gemas ojo '+(cfg.eye==='R'?'der. ':'izq. ')+Math.round(ad*100)+'%'+adapt(acc)))}
+},draw(role){
+  ctx.strokeStyle='rgba(236,232,223,.35)';ctx.lineWidth=0.1;ctx.strokeRect(-11,-8.6,22,17.2);
+  txt(String(this.score),0,-7.7,0.9);txt(Math.max(0,Math.round(this.dur-this.t))+' s',9,-7.7,0.7,C.mut);txt(Math.round(S.demand)+' Δ',-9,-7.7,0.7,C.mut);
+  const c=role==='dev'?C.dev:C.fix;
+  for(const o of this.objs){if(o.eye!==role)continue;if(o.rock)dot(o.x,o.y,0.6,C.bad);else{ctx.beginPath();ctx.moveTo(o.x,o.y-0.65);ctx.lineTo(o.x+0.5,o.y);ctx.lineTo(o.x,o.y+0.65);ctx.lineTo(o.x-0.5,o.y);ctx.closePath();ctx.fillStyle=c;ctx.fill()}}
+  ctx.beginPath();ctx.moveTo(this.ship,6.3);ctx.lineTo(this.ship+1.1,7.7);ctx.lineTo(this.ship-1.1,7.7);ctx.closePath();ctx.fillStyle=C.ink;ctx.fill();
+}});
+
+const sJump=()=>({dim:true,dur:60,k:-1,sw:0,arrow:1,shown:0,ans:true,ok:0,err:0,miss:0,flash:0,good:true,update(){
+  if(this.t>=this.dur){const n=this.ok+this.err+this.miss,acc=n?this.ok/n:0,cpm=this.ok/2/(this.dur/60);
+    sess.rounds.push({g:'Saltos',lvl:level,acc:r1(acc*100),cpm:r1(cpm),max:maxBO()});
+    go(sRest('Saltos '+Math.round(acc*100)+'% · '+cpm.toFixed(1)+' ciclos/min'+adapt(acc)));return}
+  if(this.t>=this.sw){if(!this.ans&&this.k>=0)this.miss++;this.k++;this.sw=this.t+(alta()?Math.max(1.8,4.2-0.2*level):Math.max(2.4,5-0.2*level));
+    S.demand=this.k%2===0?0.8*maxBO():-sess.biJ;this.arrow=Math.random()<0.5?-1:1;this.shown=this.t+0.7;this.ans=false}
+  else S.demand=this.k%2===0?0.8*maxBO():-sess.biJ;
+},on(e){if(e==='ok'||this.ans||this.t<this.shown)return;this.ans=true;this.good=(e==='right'?1:-1)===this.arrow;if(this.good)this.ok++;else this.err++;this.flash=this.t+0.35},draw(role){
+  rings();nonius(role);const a=this.arrow;
+  if(this.t>=this.shown&&!this.ans)splitE(role,a,Math.max(0.6,1.4-0.05*level));
+  if(this.flash>this.t)dot(0,0,0.45,this.good?C.dev:C.bad);
+  txt('¿Hacia dónde abre la E? Inclina',0,-5.6,0.9);
+  txt((S.demand>0?'BO ':'BI ')+Math.abs(S.demand).toFixed(0)+' Δ · '+Math.max(0,Math.round(this.dur-this.t))+' s',0,5.6,0.75,C.mut);
+}});
+
+const sHold=()=>({dim:true,dur:45,sz:1.4,best:null,cur:1,tt:1.5,ok:0,n:0,flash:0,good:true,update(){
+  S.demand=maxBO()*(this.t<3?0.8*this.t/3:0.8+0.3*(this.t-3)/(this.dur-3));
+  if(this.t>=this.dur){const acc=this.n?this.ok/this.n:0;sess.rounds.push({g:'Sostener',lvl:level,acc:r1(acc*100),best:this.best==null?null:r1(this.best*60),max:maxBO()});
+    go(sRest('Sostener '+Math.round(acc*100)+'% · E más chica '+(this.best==null?'—':Math.round(this.best*60)+'′')+adapt(acc)));return}
+  if(this.t>=this.tt&&this.t-this.tt>4)this.resp(false);
+},on(e){if(e==='ok'||this.t<this.tt+0.3)return;this.resp((e==='right'?1:-1)===this.cur)},resp(c){
+  this.n++;this.good=c;this.flash=this.t+0.3;
+  if(c){this.ok++;if(this.best==null||this.sz<this.best)this.best=this.sz;this.sz=Math.max(0.3,this.sz*0.85)}else this.sz=Math.min(2,this.sz*1.2);
+  this.cur=Math.random()<0.5?-1:1;this.tt=this.t+0.4;
+},draw(role){
+  rings();nonius(role);if(this.t>=this.tt)splitE(role,this.cur,this.sz);
+  if(this.flash>this.t)dot(0,2.2,0.25,this.good?C.dev:C.bad);
+  txt('Sostén: ¿hacia dónde abre la E?',0,-5.6,0.9);txt(Math.max(0,Math.round(this.dur-this.t))+' s',0,5.6,0.75,C.mut);
+}});
+
+const sDepth=()=>({dim:true,dur:60,d:30,side:1,streak:0,best:null,tt:0,ok:0,n:0,flash:0,good:true,enter(){this.newT()},newT(){this.side=Math.random()<0.5?-1:1;this.tt=this.t},update(){
+  S.demand=0.5*maxBO();
+  if(this.t>=this.dur){const acc=this.n?this.ok/this.n:0;if(this.best!=null)sess.stereo=sess.stereo==null?this.best:Math.min(sess.stereo,this.best);
+    sess.rounds.push({g:'Profundidad',lvl:level,acc:r1(acc*100),best:this.best});
+    go(sRest('Profundidad '+Math.round(acc*100)+'% · mejor '+(this.best==null?'—':this.best+'′')));return}
+  if(this.t-this.tt>7)this.resp(false);
+},on(e){if(e==='ok'||this.t-this.tt<0.4)return;this.resp((e==='right'?1:-1)===this.side)},resp(c){
+  this.n++;this.good=c;this.flash=this.t+0.35;
+  if(c){this.ok++;const d=Math.round(this.d);if(this.best==null||d<this.best)this.best=d;if(++this.streak>=2){this.d=Math.max(1,this.d*0.7);this.streak=0}}
+  else{this.d=Math.min(60,this.d*1.4);this.streak=0}
+  this.newT();
+},draw(role,eye){
+  const ex=(eye==='L'?1:-1)*this.d/60/2;nonius(role);
+  for(const s of[-1,1]){const x=s*4+(s===this.side?ex:0);ring(x,0,1.6,C.ink,0.16);ring(x,0,0.8,C.ink,0.1)}
+  if(this.flash>this.t)dot(0,0,0.4,this.good?C.dev:C.bad);
+  txt('¿Cuál anillo está más CERCA?',0,-5.6,0.9);txt('Inclina hacia ese lado · '+Math.round(this.d)+'′',0,5.6,0.75,C.mut);
+}});
+
+const sRest=msg=>({noHold:false,wait:alta()?5:8,update(){},on(e){if(this.t<this.wait)return;if(e==='left')go(sResults('Terminaste la sesión'));else go(nextGame())},draw(){
+  const left=this.wait-this.t;txt(msg,0,-5.2,0.85,C.dev);txt('Descanso: parpadea y relaja',0,-3.2,1.1);
+  if(left>0)txt('Espera '+Math.ceil(left)+' s',0,-1.2,0.85,C.mut);
+  else{txt('Inclina → para seguir',0,0.4,0.95);lines('← terminar\n(también si ves doble o te duele)',0,2.1,0.8,C.mut)}
+  txt('Nivel '+level+' · '+Math.floor(elapsed()/60)+' de '+cfg.mins+' min',0,5.2,0.75,C.mut);
+}});
+
+const sResults=reason=>({noHold:true,enter(){save()},on(){if(this.t>2)stop()},draw(){
+  const s=sess,ph=s.phoria;
+  txt(reason,0,-6.4,1.1);
+  const L=['Foria: '+(ph==null?'—':Math.abs(ph)+' Δ '+(ph>=0?'exo':'endo')),'BO ruptura / recobro: '+(s.bo.capped?'≥':'')+(s.bo.brk??'—')+' / '+(s.bo.rec??'—')+' Δ','BI ruptura / recobro: '+(s.bi.brk??'—')+' / '+(s.bi.rec??'—')+' Δ'];
+  if(ph>0)L.push('Meta BO (Sheard): ≥ '+r1(2*ph)+' Δ');
+  L.push('Nivel: '+level+(s.stereo!=null?' · estéreo '+s.stereo+'′':''));
+  L.forEach((l,i)=>txt(l,0,-3.8+i*1.5,0.85,i===3&&ph>0?C.dev:C.ink));
+  txt('Quítate el visor y toca la pantalla',0,5.4,0.8,C.mut);
+}});
+
+function save(){
+  if(!sess||sess.saved||sess.phoria==null)return;sess.saved=true;
+  hist.push({v:2,intens:cfg.intens,date:sess.date,phoria:sess.phoria,trials:sess.phoriaTrials,bo:sess.bo,bi:sess.bi,lvl:level,stereo:sess.stereo??null,rounds:sess.rounds,cfg:{eye:cfg.eye,fov:cfg.fov,sep:cfg.sep,lensmm:cfg.lensmm,scrmm:cfg.scrmm}});
+  store.set('prisma_hist',hist);store.set('prisma_lvl',level);
+}
+
+async function start(){
+  testing=false;$('#test').textContent='';
+  sess={date:new Date().toISOString(),phoriaTrials:[],phoria:null,bo:{},bi:{},rounds:[],stereo:null,saved:false};
+  gi=-1;inp.sign=1;inp.neutral=null;inp.roll=0;inp.keyDir=0;
+  fsOn=false;try{await document.documentElement.requestFullscreen({navigationUI:'hide'});fsOn=true}catch(e){}
+  try{if(typeof DeviceMotionEvent!=='undefined'&&DeviceMotionEvent.requestPermission)await DeviceMotionEvent.requestPermission()}catch(e){}
+  try{await screen.orientation.lock('landscape')}catch(e){}
+  try{wl=await navigator.wakeLock.request('screen')}catch(e){}
+  playing=true;document.body.classList.add('playing');fit();t0=performance.now();go(sNeutral());
+}
+function stop(){
+  save();playing=false;scene=null;document.body.classList.remove('playing');
+  try{if(document.fullscreenElement)document.exitFullscreen()}catch(e){}
+  try{wl&&wl.release()}catch(e){}wl=null;renderHist();drawChart();
+}
+document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement&&playing&&fsOn)stop()});
+
+$('#start').addEventListener('click',start);
+$('#testBtn').addEventListener('click',async()=>{
+  try{if(typeof DeviceMotionEvent!=='undefined'&&DeviceMotionEvent.requestPermission)await DeviceMotionEvent.requestPermission()}catch(e){}
+  testing=true;inp.neutral=null;inp.roll=0;inp.sign=1;inp.last='—';
+});
+
+function loop(now){
+  const dt=Math.min(0.05,lastT?(now-lastT)/1000:0);lastT=now;
+  if(playing&&scene){tickInput(dt);scene.t+=dt;if(scene.update)scene.update(dt);if(scene)render()}
+  else if(testing){tickInput(dt);$('#test').textContent=(inp.motion?'Sensor: sí · inclinación '+Math.round(inp.roll)+'°':'Sensor: no detectado (usa un control Bluetooth o teclado)')+' · última acción: '+({left:'izquierda',right:'derecha',ok:'botón'}[inp.last]||'—')}
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* ---------- historial ---------- */
+function renderHist(){
+  const tb=$('#hist');
+  if(!hist.length){tb.innerHTML='<tr><td colspan="7" class="mut">Aún no hay sesiones. Tu primera sesión aparecerá aquí.</td></tr>';$('#goal').textContent='';return}
+  const f=v=>v==null?'—':v;
+  tb.innerHTML=hist.slice().reverse().map(h=>`<tr><td>${new Date(h.date).toLocaleDateString('es-MX',{day:'numeric',month:'short'})}</td><td>${h.v||1}</td><td>${h.phoria==null?'—':Math.abs(h.phoria)+' Δ '+(h.phoria>=0?'exo':'endo')}</td><td>${h.bo&&h.bo.capped?'≥':''}${f(h.bo&&h.bo.brk)} / ${f(h.bo&&h.bo.rec)} Δ</td><td>${h.bi&&h.bi.capped?'≥':''}${f(h.bi&&h.bi.brk)} / ${f(h.bi&&h.bi.rec)} Δ</td><td>${f(h.lvl)}</td><td>${h.stereo==null?'—':h.stereo+'′'}</td></tr>`).join('');
+  const l=hist[hist.length-1];
+  $('#goal').innerHTML=l.phoria>0&&l.bo?`Última sesión: BO ruptura <b>${f(l.bo.brk)} Δ</b> · meta de Sheard (2 × foria) <b>≥ ${r1(2*l.phoria)} Δ</b>`:'';
+}
+renderHist();drawChart();
+$('#copy').addEventListener('click',async e=>{try{await navigator.clipboard.writeText(JSON.stringify(hist,null,1));e.target.textContent='Copiado'}catch(err){e.target.textContent='No se pudo copiar'}setTimeout(()=>e.target.textContent='Copiar datos',1800)});
+function drawChart(){
+  const svg=$('#chart'),card=$('#chartCard'),d=hist.filter(h=>h.v===2&&h.bo&&h.bo.brk!=null);
+  if(d.length<1){card.style.display='none';return}card.style.display='';
+  const W2=600,H2=200,pl=34,pr=12,pt=12,pb=26,ymax=Math.max(10,...d.map(h=>Math.max(h.bo.brk,2*Math.max(0,h.phoria||0))))*1.1;
+  const X=i=>pl+(d.length===1?(W2-pl-pr)/2:i*(W2-pl-pr)/(d.length-1)),Y=v=>pt+(1-v/ymax)*(H2-pt-pb);
+  const path=(f)=>d.map((h,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(f(h)).toFixed(1)).join('');
+  let g='';for(let v=0;v<=ymax;v+=10)g+=`<line x1="${pl}" x2="${W2-pr}" y1="${Y(v)}" y2="${Y(v)}" stroke="currentColor" stroke-opacity=".12"/><text x="${pl-6}" y="${Y(v)+4}" text-anchor="end" font-size="12" fill="currentColor" fill-opacity=".6">${v}</text>`;
+  const pts=(f,c)=>d.map((h,i)=>`<circle cx="${X(i)}" cy="${Y(f(h))}" r="4" fill="${c}"/>`).join('');
+  svg.innerHTML=g+`<path d="${path(h=>2*Math.max(0,h.phoria||0))}" fill="none" stroke="var(--warm)" stroke-dasharray="5 5" stroke-width="2"/>`
+    +`<path d="${path(h=>Math.max(0,h.phoria||0))}" fill="none" stroke="var(--warm)" stroke-width="2.5"/>`+pts(h=>Math.max(0,h.phoria||0),'var(--warm)')
+    +`<path d="${path(h=>h.bo.brk)}" fill="none" stroke="var(--acc)" stroke-width="2.5"/>`+pts(h=>h.bo.brk,'var(--acc)')
+    +`<text x="${pl}" y="${H2-6}" font-size="12" fill="currentColor" fill-opacity=".6">sesión 1</text>${d.length>1?`<text x="${W2-pr}" y="${H2-6}" text-anchor="end" font-size="12" fill="currentColor" fill-opacity=".6">sesión ${d.length}</text>`:''}`;
+}
+let wipeArm=false;
+$('#wipe').addEventListener('click',e=>{if(!wipeArm){wipeArm=true;e.target.textContent='¿Seguro? Toca otra vez';setTimeout(()=>{wipeArm=false;e.target.textContent='Borrar historial'},3000);return}hist=[];store.set('prisma_hist',hist);level=0;store.set('prisma_lvl',0);lvlEl.value=0;renderHist();drawChart();wipeArm=false;e.target.textContent='Borrar historial'});
+}
+</script>
+</body></html>
