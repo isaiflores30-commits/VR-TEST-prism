@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Prisma 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: igual que Prisma 2D: clínico y amable.
+   IDEA: el mismo estereoscopio, ahora con profundidad real.
+   PICTURE: el símbolo de Prisma (dos haces que se vuelven uno).
+   COLOUR and TYPE: noche, hueso, ámbar (ojo que fija), turquesa (ojo desviado); Atkinson Hyperlegible.
+   LAYOUT: una columna: título, inicio, ajustes, cómo funciona, historial. */
+:root{color-scheme:light dark;--bg:light-dark(#f3f0e8,#0e0f12);--ink:light-dark(#141518,#ece8df);--mut:light-dark(#4a4d55,#a9a69f);--card:light-dark(#fffdf8,#17181c);--line:light-dark(#d9d4c8,#2f3137);--acc:light-dark(#0f766e,#4fd1c5);--warm:light-dark(#b45309,#f6ad55)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Atkinson Hyperlegible",system-ui,sans-serif;overflow-x:clip}
+main{max-width:940px;margin:0 auto;padding:clamp(20px,4vw,48px) max(5vw,16px)}
+h1{font-size:clamp(34px,6vw,48px);line-height:1.05;margin:0 0 10px;text-wrap:balance}
+h2{font-size:21px;line-height:1.2;margin:34px 0 12px}
+p{margin:0 0 12px;max-width:66ch}.mut{color:var(--mut)}
+.hero{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:28px;align-items:center}
+.mark{background:#0e0f12;border-radius:28px;padding:28px}
+.mark svg{width:100%;height:auto;display:block}
+.go{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 6px}
+button,.btn{font:inherit;font-weight:700;min-height:48px;padding:0 20px;border-radius:12px;border:2px solid var(--acc);background:var(--acc);color:light-dark(#fff,#0b1413);cursor:pointer;display:inline-flex;align-items:center;text-decoration:none}
+button.ghost,.btn.ghost{background:transparent;color:var(--acc)}
+button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid var(--warm);outline-offset:2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}
+label{display:grid;gap:6px;font-size:15px;color:var(--mut)}label b{color:var(--ink)}
+input,select{font:inherit;font-size:16px;min-height:44px;padding:6px 10px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+input[type=range]{padding:0;accent-color:var(--acc);border:0;background:none}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 18px}
+.note{border-left:4px solid var(--warm);padding:12px 16px;background:var(--card);border-radius:0 12px 12px 0;font-size:15px;margin:20px 0}
+.note p{margin:0 0 6px}.note p:last-child{margin:0}
+ol{padding-left:22px;margin:0}ol li{margin-bottom:6px;max-width:66ch}
+table{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:tabular-nums}
+th,td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{font-size:13px;color:var(--mut);font-weight:700}th:first-child,td:first-child{text-align:left}
+.scroll{overflow-x:auto}
+#test{font-variant-numeric:tabular-nums;font-weight:700;margin-top:10px}
+#vr{position:fixed;inset:0;width:100vw;height:100vh;display:none;touch-action:none}
+body.playing{overflow:hidden}body.playing #vr{display:block}body.playing main{display:none}
+@media(max-width:600px){.hero{grid-template-columns:1fr}table{font-size:13px}}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+</head><body>
+<main>
+<section class="hero">
+  <div>
+    <h1>Prisma 3D</h1>
+    <p class="mut">Fusión, convergencia y visión en profundidad con objetos 3D de verdad. Usa los mismos ajustes, calibración y nivel que Prisma 2D. Todo se maneja con la cabeza: mirar para apuntar, inclinar para responder.</p>
+    <div class="go"><button id="start">Iniciar sesión 3D</button><button class="ghost" id="testBtn">Probar control</button><a class="btn ghost" href="./">Prisma 2D</a></div>
+    <div id="test" class="mut" aria-live="polite"></div>
+  </div>
+  <div class="mark"><svg viewBox="0 0 240 160" role="img" aria-label="Símbolo de Prisma: dos haces entran a un prisma y salen como uno">
+    <path d="M120 18 L182 142 L58 142 Z" fill="rgba(236,232,223,0.06)" stroke="#ECE8DF" stroke-width="7" stroke-linejoin="round"/>
+    <line x1="8" y1="58" x2="86" y2="86" stroke="#F6AD55" stroke-width="9" stroke-linecap="round"/>
+    <line x1="8" y1="114" x2="86" y2="86" stroke="#4FD1C5" stroke-width="9" stroke-linecap="round"/>
+    <line x1="86" y1="86" x2="232" y2="86" stroke="#ECE8DF" stroke-width="9" stroke-linecap="round"/>
+  </svg></div>
+</section>
+
+<div class="note">
+  <p><b>Úsalo junto con tu oftalmóloga.</b> Sesiones de 10–15 min. Si la visión doble no se quita o te duele la cabeza, termina (inclina a la izquierda en el descanso).</p>
+  <p>En un visor de celular el enfoque es siempre lejano: los objetos que "se acercan" piden convergencia real, pero no enfoque cercano. Por eso el punto de convergencia que mide aquí no es igual al del consultorio.</p>
+</div>
+
+<h2>Ajustes (compartidos con Prisma 2D)</h2>
+<div class="grid card">
+  <label>Ojo desviado<select id="eye"><option value="R">Derecho</option><option value="L">Izquierdo</option></select></label>
+  <label>Intensidad<select id="intens"><option value="normal">Normal (+2 Δ/nivel)</option><option value="alta">Alta (+3 Δ/nivel)</option></select></label>
+  <label>Duración de la sesión<select id="mins"><option value="10">10 min</option><option value="15">15 min</option><option value="20">20 min</option></select></label>
+  <label>Nivel 3D (0 = automático) <input id="lvl" type="number" min="0" max="18" step="1" inputmode="numeric"></label>
+  <label>Campo visual por ojo: <b><span id="fovV"></span>°</b><input id="fov" type="range" min="60" max="110" step="1"></label>
+  <label>Separación de imágenes: <b><span id="sepV"></span> px</b><input id="sep" type="range" min="-60" max="60" step="2"></label>
+  <label>Distancia entre centros de lentes (mm, 0 = no usar) <input id="lensmm" type="number" min="0" max="80" step="0.5" inputmode="decimal"></label>
+  <label>Ancho de la pantalla del celular (mm) <input id="scrmm" type="number" min="0" max="250" step="0.5" inputmode="decimal"></label>
+  <label>Contraste del ojo que no se desvía: <b><span id="contrastV"></span>%</b><input id="contrast" type="range" min="30" max="100" step="5"></label>
+  <label>Inclinación para elegir: <b><span id="tiltV"></span>°</b><input id="tilt" type="range" min="8" max="25" step="1"></label>
+</div>
+
+<h2>Cómo va una sesión</h2>
+<ol>
+  <li><b>Centro.</b> Cabeza derecha 3 s y luego una inclinación a la derecha.</li>
+  <li><b>Acercamiento.</b> Un blanco viene hacia tu nariz. Inclina cuando lo veas doble y otra vez cuando, al alejarse, vuelva a ser uno. Mide tu punto de convergencia en el visor.</li>
+  <li><b>Túnel</b> (fusión): vuelas por un túnel mientras el prisma sube y baja. Mira las esferas para atraparlas: unas las ve solo un ojo, otras solo el otro. Evita mirar los cubos rojos.</li>
+  <li><b>Saltos 3D</b> (convergencia): el blanco brinca de lejos a muy cerca. Di hacia dónde abre la E partida: solo la lees bien si fusionas.</li>
+  <li><b>Profundidad</b> (estereopsis): dos figuras del mismo tamaño aparente; inclina hacia la que está más cerca. La diferencia se va haciendo más pequeña.</li>
+  <li>Con 85 % o más subes de nivel (en alta: 80 % sube uno, 95 % sube dos); con menos de 50 % bajas uno.</li>
+</ol>
+
+<h2>Historial 3D</h2>
+<div class="scroll"><table><thead><tr><th>Fecha</th><th>Convergencia ruptura / recobro</th><th>Túnel</th><th>Saltos</th><th>Estéreo</th><th>Nivel</th></tr></thead><tbody id="hist"></tbody></table></div>
+<div class="go"><button class="ghost" id="copy">Copiar datos</button></div>
+</main>
+<canvas id="vr"></canvas>
+<script type="module">
+import * as THREE from 'three';
+{
+const $=s=>document.querySelector(s);
+const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const cfg=Object.assign({eye:'R',fov:90,sep:0,mins:15,contrast:100,tilt:14,intens:'alta',lensmm:0,scrmm:0},store.get('prisma_cfg',{}));
+let level=Number(store.get('prisma3d_lvl',0))||0;
+let hist=store.get('prisma3d_hist',[]);if(!Array.isArray(hist))hist=[];
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),r1=v=>Math.round(v*10)/10,DEG=Math.PI/180;
+const alta=()=>cfg.intens==='alta',lvStep=()=>alta()?3:2,maxBO=()=>4+lvStep()*level;
+const IPD=0.064;
+
+for(const id of ['eye','intens','fov','sep','mins','contrast','tilt','lensmm','scrmm']){
+  const el=$('#'+id),out=$('#'+id+'V');el.value=cfg[id];
+  const sync=()=>{cfg[id]=id==='eye'||id==='intens'?el.value:Number(el.value)||0;if(out)out.textContent=el.value;store.set('prisma_cfg',cfg)};
+  el.addEventListener('input',sync);sync();
+}
+const lvlEl=$('#lvl');lvlEl.value=level;
+lvlEl.addEventListener('change',()=>{level=clamp(Math.round(Number(lvlEl.value)||0),0,18);lvlEl.value=level;store.set('prisma3d_lvl',level)});
+
+/* ---------- entrada ---------- */
+const inp={motion:false,raw:0,neutral:null,sign:1,roll:0,keyDir:0,armed:true,ht:0,hd:0,last:'—'};
+addEventListener('devicemotion',ev=>{
+  const g=ev.accelerationIncludingGravity;if(!g||g.x==null||g.y==null)return;
+  inp.motion=true;const a=Math.atan2(g.y,g.x)/DEG;inp.raw=a;
+  if(inp.neutral==null){inp.neutral=a;return}
+  let d=a-inp.neutral;d=((d+540)%360)-180;inp.roll+=0.25*(d-inp.roll);
+});
+const ori={ok:false,a:0,b:0,g:0};
+addEventListener('deviceorientation',e=>{if(e.alpha==null)return;ori.ok=true;ori.a=e.alpha;ori.b=e.beta;ori.g=e.gamma});
+const tiltR=()=>inp.sign*inp.roll;
+function fire(ev){inp.last=ev;if(playing&&scene&&scene.on)scene.on(ev)}
+function tickInput(dt){
+  if(!inp.motion)return;const r=tiltR(),dir=r>cfg.tilt?1:r<-cfg.tilt?-1:0;
+  if(dir&&inp.armed){if(inp.hd!==dir){inp.hd=dir;inp.ht=0}inp.ht+=dt;if(inp.ht>=0.7){inp.armed=false;inp.ht=0;fire(dir>0?'right':'left')}}
+  else{inp.ht=0;inp.hd=0;if(Math.abs(r)<cfg.tilt*0.5)inp.armed=true}
+}
+const KL=['ArrowLeft','a','A'],KR=['ArrowRight','d','D'],KO=['Enter',' ','ArrowUp','ArrowDown','AudioVolumeUp','AudioVolumeDown','MediaPlayPause','PageUp','PageDown'];
+addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&playing){stop();return}
+  let ev=null;if(KL.includes(e.key)){inp.keyDir=-1;ev='left'}else if(KR.includes(e.key)){inp.keyDir=1;ev='right'}else if(KO.includes(e.key))ev='ok';
+  if(!ev)return;if(playing)e.preventDefault();if(!e.repeat)fire(ev);
+});
+addEventListener('keyup',e=>{if(KL.includes(e.key)||KR.includes(e.key))inp.keyDir=0});
+
+/* ---------- three.js: dos cámaras, prisma por proyección ---------- */
+const cv=$('#vr');let renderer=null;
+const scene3=new THREE.Scene();scene3.fog=new THREE.Fog(0x0e0f12,8,42);
+const head=new THREE.Object3D();scene3.add(head);
+const camL=new THREE.PerspectiveCamera(80,1,0.03,100),camR=new THREE.PerspectiveCamera(80,1,0.03,100);
+camL.position.x=-IPD/2;camR.position.x=IPD/2;head.add(camL,camR);
+const hud=new THREE.Group();head.add(hud);
+const ovScene=new THREE.Scene(),ovCam=new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+const ovMat=new THREE.MeshBasicMaterial({color:0x0e0f12,transparent:true,opacity:0,depthTest:false});
+ovScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2),ovMat));
+const S={demand:0};
+const COL={ink:0xECE8DF,dev:0x4FD1C5,fix:0xF6AD55,bad:0xEF6B5B,dim:0x55585f};
+const mat=c=>new THREE.MeshBasicMaterial({color:c});
+const onLayer=(o,l)=>{o.traverse(x=>x.layers.set(l));return o};
+
+function setupCam(cam,eye,half,H,W){
+  const hf=cfg.fov*DEG,tanH=Math.tan(hf/2);
+  cam.aspect=half/H;cam.fov=2*Math.atan(tanH/cam.aspect)/DEG;cam.updateProjectionMatrix();
+  const prism=(eye==='L'?1:-1)*Math.tan(Math.atan(S.demand/100)/2)/tanH;
+  const mm=cfg.lensmm>0&&cfg.scrmm>0?cfg.lensmm/2*(W/cfg.scrmm):null;
+  let cx=mm==null?half/2:(eye==='L'?W/2-mm:mm);cx+=eye==='L'?-cfg.sep:cfg.sep;
+  const off=(cx-half/2)/(half/2);
+  cam.projectionMatrix.elements[8]-=prism+off;
+  cam.projectionMatrixInverse.copy(cam.projectionMatrix).invert();
+}
+function render(){
+  const W=innerWidth,H=innerHeight,half=W/2;
+  renderer.setScissorTest(true);
+  for(const e of ['L','R']){
+    const cam=e==='L'?camL:camR,role=e===cfg.eye?'dev':'fix',x0=e==='L'?0:half;
+    setupCam(cam,e,half,H,W);cam.layers.set(0);cam.layers.enable(role==='dev'?2:1);
+    renderer.setViewport(x0,0,half,H);renderer.setScissor(x0,0,half,H);
+    renderer.autoClear=true;renderer.render(scene3,cam);
+    if(role==='fix'&&scene&&scene.dim&&cfg.contrast<100){ovMat.opacity=1-cfg.contrast/100;renderer.autoClear=false;renderer.render(ovScene,ovCam);renderer.autoClear=true}
+  }
+}
+function fit(){if(!renderer)return;renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));renderer.setSize(innerWidth,innerHeight,false)}
+addEventListener('resize',fit);
+cv.addEventListener('pointerdown',e=>fire(e.clientX<innerWidth/2?'left':'right'));
+
+/* orientación de la cabeza */
+const zee=new THREE.Vector3(0,0,1),eul=new THREE.Euler(),q0=new THREE.Quaternion(),q1=new THREE.Quaternion(-Math.sqrt(0.5),0,0,Math.sqrt(0.5));
+const rawQ=new THREE.Quaternion(),yawFix=new THREE.Quaternion(),Y=new THREE.Vector3(0,1,0);let keyYaw=0;
+function updHead(dt){
+  if(ori.ok){eul.set(ori.b*DEG,ori.a*DEG,-ori.g*DEG,'YXZ');rawQ.setFromEuler(eul).multiply(q1).multiply(q0.setFromAxisAngle(zee,-((screen.orientation&&screen.orientation.angle)||0)*DEG))}
+  else{keyYaw-=inp.keyDir*dt*0.9;rawQ.setFromAxisAngle(Y,keyYaw)}
+  head.quaternion.copy(yawFix).multiply(rawQ);
+}
+function recenter(){const e=new THREE.Euler().setFromQuaternion(rawQ,'YXZ');yawFix.setFromAxisAngle(Y,-e.y)}
+
+/* textos en el visor (pegados a la cabeza, a 2 m) */
+const texts={};
+function say(id,str,y,size,col){
+  size=size||1;col=col||'#ECE8DF';
+  const t=texts[id];if(t&&t.str===str&&t.col===col&&t.y===y)return;
+  if(t){hud.remove(t.m);t.m.geometry.dispose();t.m.material.map.dispose();t.m.material.dispose();delete texts[id]}
+  if(!str)return;
+  const lines=String(str).split('\n'),px=Math.round(56*size),c=document.createElement('canvas'),g=c.getContext('2d');
+  const font=`700 ${px}px "Atkinson Hyperlegible",system-ui,sans-serif`;g.font=font;
+  c.width=Math.ceil(Math.max(...lines.map(l=>g.measureText(l).width))+px);c.height=Math.ceil(lines.length*px*1.35+px*0.3);
+  g.font=font;g.fillStyle=col;g.textAlign='center';g.textBaseline='middle';
+  lines.forEach((l,i)=>g.fillText(l,c.width/2,px*0.15+px*1.35*(i+0.5)));
+  const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;
+  const k=0.08*size/px,m=new THREE.Mesh(new THREE.PlaneGeometry(c.width*k,c.height*k),new THREE.MeshBasicMaterial({map:tex,transparent:true,depthTest:false,depthWrite:false}));
+  m.position.set(0,y,-2);m.renderOrder=20;hud.add(m);texts[id]={m,str,col,y};
+}
+function clearTexts(){for(const k of Object.keys(texts))say(k,null)}
+
+/* blanco con anillos + nonius, y E partida */
+function makeTarget(){
+  const g=new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.RingGeometry(0.93,1,64),mat(COL.ink)));
+  g.add(new THREE.Mesh(new THREE.RingGeometry(0.62,0.66,64),mat(COL.ink)));
+  const nd=onLayer(new THREE.Mesh(new THREE.PlaneGeometry(0.07,0.4),mat(COL.dev)),2);nd.position.y=1.4;
+  const nf=onLayer(new THREE.Mesh(new THREE.PlaneGeometry(0.07,0.4),mat(COL.fix)),1);nf.position.y=-1.4;
+  g.add(nd,nf);return g;
+}
+function makeE(){
+  const g=new THREE.Group(),w=0.17;
+  for(const y of[-0.41,0,0.41]){const p=onLayer(new THREE.Mesh(new THREE.PlaneGeometry(1,w),mat(COL.fix)),1);p.position.y=y;g.add(p)}
+  const sp=onLayer(new THREE.Mesh(new THREE.PlaneGeometry(w,1),mat(COL.dev)),2);g.add(sp);g.userData.sp=sp;
+  g.setDir=d=>{sp.position.x=-0.415*d};g.scale.setScalar(0.62);return g;
+}
+function place(o,z,ax,ay,ang){o.position.set(Math.tan(ax||0)*z,Math.tan(ay||0)*z,-z);o.scale.setScalar(z*Math.tan((ang||2.2)*DEG))}
+function dispose(o){if(!o)return;o.parent&&o.parent.remove(o);o.traverse(x=>{x.geometry&&x.geometry.dispose();x.material&&x.material.dispose&&x.material.dispose()})}
+
+/* ---------- sesión y escenas ---------- */
+let playing=false,scene=null,sess=null,gi=-1,t0=0,lastT=0,wl=null,fsOn=false,testing=false;
+const elapsed=()=>(performance.now()-t0)/1000;
+function go(sc){if(scene&&scene.exit)scene.exit();clearTexts();S.demand=0;sc.t=0;scene=sc;recenter();if(sc.enter)sc.enter()}
+function holdHint(){if(inp.ht>0)say('hold','● '.repeat(Math.ceil(inp.ht/0.7*4)).trim(),-0.62,0.8,'#ECE8DF');else say('hold',null)}
+
+const sNeutral=()=>({update(){
+  if(inp.motion){say('a','Mantén la cabeza derecha',0.15,1.1);say('b',Math.max(0,Math.ceil(3.5-this.t))+'',-0.1,1.4,'#4FD1C5');
+    if(this.t>3.5){inp.neutral=inp.raw;inp.roll=0;inp.armed=false;go(sSign())}}
+  else{say('a','Preparando…',0.15,1.1);if(this.t>2)say('b','No detecto el sensor de movimiento.\nUsa el botón del control para seguir.',-0.15,0.8,'#A9A69F')}
+},on(){if(!inp.motion&&this.t>1)go(sIntro('Acercamiento','Un blanco viene hacia ti.\nCuando lo veas DOBLE, inclina la cabeza.',()=>sNear()))}});
+
+const sSign=()=>({h:0,stage:0,update(dt){
+  const r=inp.roll;
+  if(!this.stage){say('a','Inclina la cabeza a la DERECHA →',0.1,1.1);if(Math.abs(r)>cfg.tilt){this.h+=dt;if(this.h>0.6){inp.sign=r>0?1:-1;this.stage=1}}else this.h=0}
+  else{say('a','Bien. Regresa al centro',0.1,1.1);if(Math.abs(r)<4){inp.armed=false;go(sIntro('Acercamiento','Un blanco viene hacia ti.\nCuando lo veas DOBLE, inclina la cabeza.',()=>sNear()))}}
+}});
+
+const sIntro=(a,b,next,secs)=>({update(){say('a',a,0.25,1.15);say('b',b,0,0.85,'#A9A69F');if(this.t>(secs||7))go(next())},on(){if(this.t>1.5)go(next())}});
+
+/* Acercamiento: punto de convergencia en el visor */
+const sNear=()=>({ph:'ready',z:3,enter(){this.g=makeTarget();hud.add(this.g)},exit(){dispose(this.g)},update(dt){
+  if(this.ph==='ready'){if(this.t>2.5)this.ph='in'}
+  else if(this.ph==='in'){this.z=Math.max(0.05,this.z*Math.exp(-0.13*dt));if(this.z<=0.05)this.mark()}
+  else if(this.ph==='out'){this.z=Math.min(1.5,this.z*Math.exp(0.2*dt));if(this.z>=1.5)this.mark()}
+  place(this.g,this.z,0,0,2.2);
+  say('a',this.ph==='ready'?'Mira el centro del blanco':this.ph==='in'?'¿Lo ves DOBLE? Inclina':'¿Ya es UNO otra vez? Inclina',0.5,0.95);holdHint();
+},on(){if(this.ph==='in'||this.ph==='out')this.mark()},mark(){
+  const cm=r1(this.z*100),dp=Math.round(100*IPD/this.z);
+  if(this.ph==='in'){sess.npc.brk=cm;sess.npc.brkD=dp;this.ph='out';return}
+  sess.npc.rec=cm;sess.npc.recD=dp;this.ph='end';go(startTraining());
+}});
+
+function startTraining(){
+  if(!level)level=clamp(Number(store.get('prisma_lvl',0))||1,1,18);
+  sess.levelStart=level;sess.biJ=alta()?4:3;
+  return sIntro('Entrenamiento 3D · nivel '+level,'Primero: Túnel. Mira las esferas para atraparlas;\nevita los cubos rojos.',()=>nextGame(),8);
+}
+function nextGame(){if(elapsed()>=cfg.mins*60)return sResults('Tiempo cumplido');gi++;return [sTunnel,sJump,sDepth][gi%3]()}
+function adapt(acc){const old=level,up=alta()?0.8:0.85;if(alta()&&acc>=0.95)level=Math.min(18,level+2);else if(acc>=up)level=Math.min(18,level+1);else if(acc<0.5)level=Math.max(1,level-1);store.set('prisma3d_lvl',level);lvlEl.value=level;return level>old?'\nSube a nivel '+level:level<old?'\nBaja a nivel '+level:''}
+
+/* Túnel: fusión con prisma que oscila, objetos dicópticos, se apunta con la mirada */
+const sTunnel=()=>({dim:true,dur:60,objs:[],nx:0.8,st:{dev:[0,0],fix:[0,0]},hits:0,enter(){
+  this.w=new THREE.Group();scene3.add(this.w);
+  this.rings=[];for(let i=0;i<11;i++){const r=new THREE.Mesh(new THREE.TorusGeometry(3.2,0.03,6,48),mat(COL.dim));r.position.z=-4*i-2;this.w.add(r);this.rings.push(r)}
+  this.ret=new THREE.Mesh(new THREE.RingGeometry(0.045,0.06,32),mat(COL.ink));this.ret.position.z=-2;hud.add(this.ret);
+},exit(){dispose(this.w);dispose(this.ret)},update(dt){
+  const f=0.5-0.5*Math.cos(2*Math.PI*this.t/(alta()?12:20));S.demand=maxBO()*(alta()?0.3+0.7*f:f);
+  const v=7+level*0.35;
+  for(const r of this.rings){r.position.z+=v*dt;if(r.position.z>2)r.position.z-=44}
+  this.nx-=dt;if(this.nx<=0&&this.t<this.dur-4){this.nx=(alta()?0.7:0.95)+Math.random()*0.4;
+    const rock=Math.random()<0.25,eye=Math.random()<0.6?'dev':'fix',a=Math.random()*Math.PI*2,rad=(4+Math.random()*12)*DEG,z=-36;
+    const m=rock?new THREE.Mesh(new THREE.BoxGeometry(0.5,0.5,0.5),mat(COL.bad)):onLayer(new THREE.Mesh(new THREE.IcosahedronGeometry(0.28,1),mat(eye==='dev'?COL.dev:COL.fix)),eye==='dev'?2:1);
+    m.position.set(Math.cos(a)*Math.tan(rad)*-z,Math.sin(a)*Math.tan(rad)*-z,z);this.w.add(m);this.objs.push({m,rock,eye,h:0})}
+  const fwd=new THREE.Vector3(0,0,-1).applyQuaternion(head.quaternion);
+  for(const o of this.objs){o.m.position.z+=v*dt;o.m.rotation.x+=dt;o.m.rotation.y+=dt*1.3;
+    if(o.done)continue;const p=o.m.position;
+    if(p.z<-3){if(fwd.angleTo(p.clone().normalize())<7*DEG){o.h+=dt;if(o.h>0.2){o.done=true;o.m.visible=false;if(o.rock)this.hits++;else this.st[o.eye][0]++}}else o.h=0}
+    else{o.done=true;if(!o.rock)this.st[o.eye][1]++}}
+  this.objs=this.objs.filter(o=>{if(o.m.position.z>3||(!o.m.visible)){this.w.remove(o.m);o.m.geometry.dispose();o.m.material.dispose();return false}return true});
+  const got=this.st.dev[0]+this.st.fix[0];
+  say('a',got+(this.hits?'  ·  ✕'+this.hits:''),0.62,0.8);say('b',Math.max(0,Math.round(this.dur-this.t))+' s · '+Math.round(S.demand)+' Δ',-0.62,0.65,'#A9A69F');
+  if(this.t>=this.dur){const a=this.st.dev,b=this.st.fix,tot=a[0]+a[1]+b[0]+b[1];let acc=tot?(a[0]+b[0])/tot:0;acc=Math.max(0,acc-0.05*this.hits);const ad=(a[0]+a[1])?a[0]/(a[0]+a[1]):0;
+    sess.rounds.push({g:'Túnel',lvl:level,acc:r1(acc*100),dev:r1(ad*100),hits:this.hits,max:maxBO()});
+    go(sRest('Túnel '+Math.round(acc*100)+'% · ojo '+(cfg.eye==='R'?'der. ':'izq. ')+Math.round(ad*100)+'%'+adapt(acc)))}
+}});
+
+/* Saltos 3D: el blanco brinca de lejos a cerca (convergencia real) */
+function zNear(){return clamp(100*IPD/(0.8*maxBO()+100*IPD/2.5),0.1,1.5)}
+const sJump=()=>({dim:true,dur:60,k:-1,sw:0,dir:1,shown:0,ans:true,ok:0,err:0,miss:0,z:2.5,zt:2.5,fl:0,enter(){
+  this.g=makeTarget();this.E=makeE();this.g.add(this.E);hud.add(this.g);
+},exit(){dispose(this.g)},update(dt){
+  if(this.t>=this.dur){const n=this.ok+this.err+this.miss,acc=n?this.ok/n:0,cpm=this.ok/2/(this.dur/60);
+    sess.rounds.push({g:'Saltos 3D',lvl:level,acc:r1(acc*100),cpm:r1(cpm),near:Math.round(zNear()*100)});
+    go(sRest('Saltos 3D '+Math.round(acc*100)+'% · '+cpm.toFixed(1)+' ciclos/min'+adapt(acc)));return}
+  if(this.t>=this.sw){if(!this.ans&&this.k>=0)this.miss++;this.k++;
+    this.sw=this.t+(alta()?Math.max(1.8,4.2-0.2*level):Math.max(2.4,5-0.2*level));
+    const near=this.k%2===0;this.zt=near?zNear():2.5;S.demand=near?0:-sess.biJ;
+    this.dir=Math.random()<0.5?-1:1;this.E.setDir(this.dir);this.shown=this.t+0.6;this.ans=false}
+  this.z+=(this.zt-this.z)*Math.min(1,dt*10);place(this.g,this.z,0,0,2.2);
+  this.E.visible=this.t>=this.shown&&!this.ans;this.E.scale.setScalar(Math.max(0.35,0.62-0.015*level));
+  say('a','¿Hacia dónde abre la E? Inclina',0.55,0.85);
+  say('b',(this.zt<2?'Cerca '+Math.round(this.zt*100)+' cm':'Lejos + BI '+sess.biJ+' Δ')+' · '+Math.max(0,Math.round(this.dur-this.t))+' s',-0.55,0.65,'#A9A69F');
+  say('f',this.fl>this.t?(this.good?'✓':'✕'):null,-0.38,0.9,this.good?'#4FD1C5':'#EF6B5B');holdHint();
+},on(e){if(e==='ok'||this.ans||this.t<this.shown)return;this.ans=true;this.good=(e==='right'?1:-1)===this.dir;if(this.good)this.ok++;else this.err++;this.fl=this.t+0.4}});
+
+/* Profundidad: estereopsis con figuras del mismo tamaño aparente */
+const sDepth=()=>({dim:true,dur:60,d:30,side:1,streak:0,best:null,tt:0,ok:0,n:0,fl:0,enter(){
+  const geo=()=>new THREE.IcosahedronGeometry(1,0),m=()=>new THREE.MeshBasicMaterial({color:COL.ink,wireframe:true});
+  this.a=new THREE.Mesh(geo(),m());this.b=new THREE.Mesh(geo(),m());hud.add(this.a,this.b);this.newT();
+},exit(){dispose(this.a);dispose(this.b)},newT(){this.side=Math.random()<0.5?-1:1;this.tt=this.t;this.ra=Math.random()*6;this.rb=Math.random()*6},update(dt){
+  S.demand=0.5*maxBO();
+  if(this.t>=this.dur){const acc=this.n?this.ok/this.n:0;if(this.best!=null)sess.stereo=sess.stereo==null?this.best:Math.min(sess.stereo,this.best);
+    sess.rounds.push({g:'Profundidad 3D',lvl:level,acc:r1(acc*100),best:this.best});
+    go(sRest('Profundidad '+Math.round(acc*100)+'% · mejor '+(this.best==null?'—':this.best+'′')));return}
+  if(this.t-this.tt>7)this.resp(false);
+  const z0=2,z1=1/(1/z0+(this.d/60*DEG)/IPD);
+  place(this.a,this.side===-1?z1:z0,-9*DEG,0,2.6);place(this.b,this.side===1?z1:z0,9*DEG,0,2.6);
+  this.a.rotation.set(this.ra+this.t*0.4,this.ra+this.t*0.5,0);this.b.rotation.set(this.rb+this.t*0.45,this.rb+this.t*0.35,0);
+  say('a','¿Cuál está más CERCA? Inclina hacia ese lado',0.55,0.8);say('b',Math.round(this.d)+'′ · '+Math.max(0,Math.round(this.dur-this.t))+' s',-0.55,0.65,'#A9A69F');
+  say('f',this.fl>this.t?(this.good?'✓':'✕'):null,0,0.9,this.good?'#4FD1C5':'#EF6B5B');holdHint();
+},on(e){if(e==='ok'||this.t-this.tt<0.4)return;this.resp((e==='right'?1:-1)===this.side)},resp(c){
+  this.n++;this.good=c;this.fl=this.t+0.4;
+  if(c){this.ok++;const d=Math.round(this.d);if(this.best==null||d<this.best)this.best=d;if(++this.streak>=2){this.d=Math.max(1,this.d*0.7);this.streak=0}}
+  else{this.d=Math.min(60,this.d*1.4);this.streak=0}
+  this.newT();
+}});
+
+const sRest=msg=>({wait:alta()?5:8,update(){
+  const left=this.wait-this.t;say('m',msg,0.5,0.75,'#4FD1C5');say('a','Descanso: parpadea y relaja',0.2,1.05);
+  say('b',left>0?'Espera '+Math.ceil(left)+' s':'Inclina → para seguir\n← terminar (también si ves doble o te duele)',-0.08,0.8,'#A9A69F');
+  say('c','Nivel '+level+' · '+Math.floor(elapsed()/60)+' de '+cfg.mins+' min',-0.5,0.65,'#A9A69F');holdHint();
+},on(e){if(this.t<this.wait)return;if(e==='left')go(sResults('Terminaste la sesión'));else go(nextGame())}});
+
+const sResults=reason=>({enter(){save()},update(){
+  const s=sess,n=s.npc;
+  say('a',reason,0.55,1.05);
+  say('b','Convergencia: rompe a '+(n.brk??'—')+' cm, recobra a '+(n.rec??'—')+' cm\nNivel 3D: '+level+(s.stereo!=null?' · estéreo '+s.stereo+'′':''),0.15,0.8);
+  say('c','Quítate el visor y toca la pantalla',-0.4,0.7,'#A9A69F');
+},on(){if(this.t>2)stop()}});
+
+function save(){
+  if(!sess||sess.saved||(sess.npc.brk==null&&!sess.rounds.length))return;sess.saved=true;
+  hist.push({v:'3d',date:sess.date,npc:sess.npc,lvl:level,stereo:sess.stereo??null,rounds:sess.rounds,cfg:{eye:cfg.eye,fov:cfg.fov,sep:cfg.sep,lensmm:cfg.lensmm,scrmm:cfg.scrmm,intens:cfg.intens}});
+  store.set('prisma3d_hist',hist);store.set('prisma3d_lvl',level);
+}
+
+async function start(){
+  if(!renderer){try{renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true});renderer.setClearColor(0x0e0f12)}catch(e){$('#test').textContent='Este navegador no pudo iniciar WebGL.';return}}
+  testing=false;$('#test').textContent='';
+  sess={date:new Date().toISOString(),npc:{},rounds:[],stereo:null,saved:false};
+  gi=-1;inp.sign=1;inp.neutral=null;inp.roll=0;inp.keyDir=0;keyYaw=0;
+  fsOn=false;try{await document.documentElement.requestFullscreen({navigationUI:'hide'});fsOn=true}catch(e){}
+  for(const E of [typeof DeviceMotionEvent!=='undefined'&&DeviceMotionEvent,typeof DeviceOrientationEvent!=='undefined'&&DeviceOrientationEvent])try{if(E&&E.requestPermission)await E.requestPermission()}catch(e){}
+  try{await screen.orientation.lock('landscape')}catch(e){}
+  try{wl=await navigator.wakeLock.request('screen')}catch(e){}
+  playing=true;document.body.classList.add('playing');fit();t0=performance.now();go(sNeutral());
+}
+function stop(){
+  save();playing=false;if(scene&&scene.exit)scene.exit();scene=null;clearTexts();document.body.classList.remove('playing');
+  try{if(document.fullscreenElement)document.exitFullscreen()}catch(e){}
+  try{wl&&wl.release()}catch(e){}wl=null;renderHist();
+}
+document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement&&playing&&fsOn)stop()});
+$('#start').addEventListener('click',start);
+$('#testBtn').addEventListener('click',async()=>{
+  for(const E of [typeof DeviceMotionEvent!=='undefined'&&DeviceMotionEvent,typeof DeviceOrientationEvent!=='undefined'&&DeviceOrientationEvent])try{if(E&&E.requestPermission)await E.requestPermission()}catch(e){}
+  testing=true;inp.neutral=null;inp.roll=0;inp.sign=1;inp.last='—';
+});
+
+function loop(now){
+  const dt=Math.min(0.05,lastT?(now-lastT)/1000:0);lastT=now;
+  if(playing&&scene){tickInput(dt);updHead(dt);scene.t+=dt;if(scene.update)scene.update(dt);if(renderer&&scene)render()}
+  else if(testing){tickInput(dt);$('#test').textContent=(inp.motion?'Inclinación: sí ('+Math.round(inp.roll)+'°)':'Inclinación: no detectada')+' · mirar alrededor: '+(ori.ok?'sí':'no')+' · última acción: '+({left:'izquierda',right:'derecha',ok:'botón'}[inp.last]||'—')}
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+function renderHist(){
+  const tb=$('#hist');
+  if(!hist.length){tb.innerHTML='<tr><td colspan="6" class="mut">Aún no hay sesiones 3D.</td></tr>';return}
+  const f=v=>v==null?'—':v,acc=(h,g)=>{const r=(h.rounds||[]).filter(x=>x.g===g);return r.length?Math.round(r.reduce((s,x)=>s+x.acc,0)/r.length)+' %':'—'};
+  tb.innerHTML=hist.slice().reverse().map(h=>`<tr><td>${new Date(h.date).toLocaleDateString('es-MX',{day:'numeric',month:'short'})}</td><td>${f(h.npc&&h.npc.brk)} / ${f(h.npc&&h.npc.rec)} cm</td><td>${acc(h,'Túnel')}</td><td>${acc(h,'Saltos 3D')}</td><td>${h.stereo==null?'—':h.stereo+'′'}</td><td>${f(h.lvl)}</td></tr>`).join('');
+}
+renderHist();
+$('#copy').addEventListener('click',async e=>{try{await navigator.clipboard.writeText(JSON.stringify(hist,null,1));e.target.textContent='Copiado'}catch(err){e.target.textContent='No se pudo copiar'}setTimeout(()=>e.target.textContent='Copiar datos',1800)});
+}
+</script>
+</body></html>
